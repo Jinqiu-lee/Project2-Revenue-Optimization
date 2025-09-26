@@ -16,7 +16,10 @@ from sklearn.metrics import r2_score, mean_squared_error
 from xgboost import plot_importance
 from prophet import Prophet
 import joblib
+from fredapi import Fred
 
+
+fred = Fred(api_key="2991e539c6491edffa341a08ad95a396")
 
 @st.cache_data
 def load_data():
@@ -26,10 +29,11 @@ def load_data():
     df_holiday['Date'] = pd.to_datetime(df_holiday['Date'], format="%d-%m-%Y")
     df_non_holiday = pd.read_csv("./data/Walmart Non Holiday Weekly Sales.csv")
     df_non_holiday['Date'] = pd.to_datetime(df_non_holiday['Date'], format="%d-%m-%Y")
+    macro_data = pd.read_pickle("./data/macro_data.pkl")
     
-    return df, df_holiday,df_non_holiday
+    return df, df_holiday,df_non_holiday,macro_data
 
-df,df_holiday, df_non_holiday = load_data()
+df,df_holiday, df_non_holiday,macro_data = load_data()
 
 
 st.subheader(" 🎬 Data Exploring ")
@@ -270,28 +274,9 @@ for cluster in df_with_features['Cluster_Category'].unique():
      st.pyplot(fig)
 
 # Check and validate the sales trending down with macro market(retail index, unemployment and inflation etc)
-from fredapi import Fred
+
 st.write("##### Sales results VS Macro economics")
-  
-# 1. Connect to FRED
-fred = Fred(api_key="2991e539c6491edffa341a08ad95a396")
 
-# 2. Pull macroeconomic series
-# Retail Sales (Advance Retail Sales: General Merchandise Stores, NSA)
-retail = fred.get_series("RSAFS", observation_start="2010-01-01")
-
-# Unemployment Rate (monthly, %)
-unemp = fred.get_series("UNRATE", observation_start="2010-01-01")
-
-# Consumer Price Index (All Urban Consumers, CPI-U)
-cpi = fred.get_series("CPIAUCSL", observation_start="2010-01-01")
-
-# 3. Combine into DataFrame
-macro_data = pd.concat([retail, unemp, cpi], axis=1)
-macro_data.columns = ["RetailSales", "Unemployment", "CPI"]
-
-# 4. Preprocess (monthly)
-macro_data.index = pd.to_datetime(macro_data.index)
 macro_df = macro_data.resample('ME').mean()  # ensure monthly
 
 df['Date'] = pd.to_datetime(df['Date'])
