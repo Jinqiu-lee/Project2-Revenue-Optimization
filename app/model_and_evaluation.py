@@ -7,7 +7,7 @@ from xgboost import XGBRegressor
 from sklearn.metrics import auc
 import seaborn as sns
 import joblib
-
+import pickle
 
 
 st.header(" 🤖 Modeling & Evaluation Dashboard")
@@ -15,6 +15,16 @@ st.header(" 🤖 Modeling & Evaluation Dashboard")
 
 df = pd.read_pickle("data/processed_data.pkl")
 impact_df = pd.read_pickle("data/impact_data.pkl")
+# load models 
+with open("model/blackfriday_thanksgiving_control.pkl","rb") as f:
+    bf_control = pickle.load(f)
+with open("model/blackfriday_thanksgiving_treat.pkl","rb") as f:
+    bf_treat = pickle.load(f)
+with open("model/superbowl_control.pkl","rb") as f:    
+    spb_control =pickle.load(f)
+with open("model/superbowl_treat.pkl","rb") as f:
+    spb_treat = pickle.load(f)  
+    
 
 # create one-hot encoding 
 holiday_dummies = pd.get_dummies(df['Holiday_Name'],prefix='Holiday')
@@ -72,29 +82,14 @@ with tabs[0]:
     X_train, X_test, y_train, y_test, t_train, t_test = train_test_split(
         X, y, t, test_size=0.3, random_state=42
     )
-
-    # split into control/treatment
-    control_idx = (t_train == 0)
-    treat_idx = (t_train == 1)
-
-    X_control, y_control = X_train[control_idx],y_train[control_idx]
-    X_treat,y_treat = X_train[treat_idx],y_train[treat_idx]
-    
-    # Step 3 : Train T-learner(two models)
-    # Model A : control froup (t=0,no Black Friday / Thanksgiving) , Model B : Treamtment group (t=1. holiday weeks)
-    control_model = XGBRegressor(random_state=42,n_estimators=500, max_depth=4, learning_rate=0.01) 
-    treat_model = XGBRegressor(random_state=42,n_estimators=500, max_depth=4, learning_rate=0.01)
-
-    control_model.fit(X_control,y_control)
-    treat_model.fit(X_treat,y_treat)
-
+   
     # Step 4: Predict outcomes & compute uplift
-    y_pred_control = control_model.predict(X_test)
-    y_pred_treat = treat_model.predict(X_test)
+    y_pred_control = bf_control.predict(X_test)
+    y_pred_treat = bf_treat.predict(X_test)
 
     #Predcit all dataset
-    y_pred_ctrl = control_model.predict(X)
-    y_pred_te = treat_model.predict(X)
+    y_pred_ctrl = bf_control.predict(X)
+    y_pred_te = bf_treat.predict(X)
 
     # uplift = difference
     uplift = y_pred_treat - y_pred_control
@@ -105,9 +100,7 @@ with tabs[0]:
     df_evaluation['treatment_flag'] = t_test.values
     df_evaluation['uplift'] = uplift
     
-    joblib.dump(treat_model,"model/blackfriday_thanksgiving_treat.pkl")
-    joblib.dump(control_model,"model/blackfriday_thanksgiving_control.pkl")
-    
+
     # Step 5: Qini Score Function
 
     def qini_score(df,uplift_col='uplift',treat_col='treatment_flag',outcome_col='Weekly_Sales'):
@@ -305,7 +298,7 @@ with tabs[1]:
                 
         NY_Chris_summary_df = pd.DataFrame(results)
         return NY_Chris_summary_df
-                
+           
     baseline_sales = (
         df.groupby("Cluster_Category")["Weekly_Sales"]
         .mean()      # or .median() if that's your baseline definition
@@ -319,10 +312,12 @@ with tabs[1]:
         "Flagstore": -0.086  # choose 5%(instead of 8.6%)since flagships usually can absorb losses better.
     }
 
-    NY_Chrismas_summary = evaluate_NY_Christmas(baseline_sales,observed_dips)
-    joblib.dump(NY_Chrismas_summary,"model/mitigation_christmas_newyear.pkl")
     
-    st.dataframe(NY_Chrismas_summary)
+    NY_Christmas_summary = evaluate_NY_Christmas(baseline_sales,observed_dips)
+    # joblib.dump(NY_Christmas_summary,"model/mitigation_christmas_newyear.pkl")
+
+    
+    st.dataframe(NY_Christmas_summary)
     st.markdown("""
                     **Baseline dip: Without action, sales decline in**
                     - Flagstore 📉8.6%
@@ -388,29 +383,14 @@ with tabs[2]:
      X_train, X_test, y_train, y_test, t_train, t_test = train_test_split(
         X, y, t, test_size=0.2, random_state=42
     )
-
-    # split into control/treatment
-     control = (t_train == 0)
-     treat = (t_train == 1)
-
-     X_control, y_control = X_train[control],y_train[control]
-     X_treat,y_treat = X_train[treat],y_train[treat]
-
-    # Step 3 : Train T-learner(two models)
-    # Model A : control froup (t=0,no Black Friday / Thanksgiving) , Model B : Treamtment group (t=1. holiday weeks)
-     control_model_spb = XGBRegressor(random_state=42,n_estimators=500, max_depth=4, learning_rate=0.01) 
-     treat_model_spb= XGBRegressor(random_state=42,n_estimators=500, max_depth=4, learning_rate=0.01)
-
-     control_model_spb.fit(X_control,y_control)
-     treat_model_spb.fit(X_treat,y_treat)
-
+   
     # Step 4: Predict outcomes & compute uplift
-     y_pred_ctrl = control_model_spb.predict(X_test)
-     y_pred_te = treat_model_spb.predict(X_test)
+     y_pred_ctrl = spb_control.predict(X_test)
+     y_pred_te = spb_treat.predict(X_test)
 
     #Predcit all dataset
-     y_pred_ctrl_alldata = control_model_spb.predict(X)
-     y_pred_te_alldata = treat_model_spb.predict(X)
+     y_pred_ctrl_alldata = spb_control.predict(X)
+     y_pred_te_alldata = spb_treat.predict(X)
 
     # uplift for superbowl
      uplift_superbowl = y_pred_te - y_pred_ctrl
@@ -421,8 +401,6 @@ with tabs[2]:
      evaluate_superbowl['treatment_flag'] = t_test.values
      evaluate_superbowl['uplift_superbowl'] = uplift_superbowl
      
-     joblib.dump(treat_model_spb,"model/superbowl_treat.pkl")
-     joblib.dump(control_model_spb,"model/superbowl_control.pkl")
      
 
     # Step 5: Qini Score Function
