@@ -6,7 +6,8 @@ pandas>=2.2,<3.0
 
 # ML
 xgboost>=2.0,<2.1
-prophet>=1.1.5
+prophet==1.1.5
+cmdstanpy==1.2.3
 
 # Optimization
 pulp==2.8.0
