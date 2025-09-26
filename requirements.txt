@@ -1,11 +1,13 @@
 # Core
+streamlit==1.48.0
 pandas==2.2.2
 numpy==1.26.4
 pyarrow==15.0.2
 
 # ML
-scikit-learn==1.4.2
+scikit-learn==1.7.2
 xgboost==2.1.1  
+prophet==1.1.7
 
 # Optimization
 pulp==2.8.0
@@ -14,5 +16,4 @@ pulp==2.8.0
 matplotlib==3.9.1
 seaborn==0.13.2
 plotly==5.23.0
-
 
