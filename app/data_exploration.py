@@ -17,7 +17,17 @@ from xgboost import plot_importance
 from prophet import Prophet
 import joblib
 from fredapi import Fred
+import pickle
+from prophet.serialize import model_to_json,model_from_json
 
+# load model and forecast dataframe
+with open("model/prophet_sales.json", "r") as f:
+    prophet_model = model_from_json(f.read())
+forecast = pd.read_csv("model/prophet_forecast.csv")
+df_prophet = pd.read_csv("model/df_prophet.csv")
+future = pd.read_csv("model/df_future.csv")
+model_xgb = XGBRegressor()
+model_xgb.load_model("model/model_xgb.json")
 
 fred = Fred(api_key="2991e539c6491edffa341a08ad95a396")
 
@@ -211,7 +221,10 @@ with st.expander("Store Segmentation info"):
                 """)
 
 
+
 st.write(" ##### 6️⃣ ➡️ Sales Forecast For Clusters ") 
+
+
 # Train a Prophet model per cluster category. Forecast future sales per cluster
 cluster_sales = (
      df.groupby(['Cluster_Category','Date'])['Weekly_Sales'].sum().reset_index()
@@ -231,47 +244,14 @@ df_with_features['Month'] = pd.to_datetime(df_with_features['Date']).dt.month
 forecast_results = {}
 
 for cluster in df_with_features['Cluster_Category'].unique():
-     df_cluster = df_with_features[df_with_features['Cluster_Category'] == cluster]
-     df_prophet = df_cluster.rename(columns = {"Date":"ds","Weekly_Sales":"y"})
-     
-     # Fit prophet model 
-     model = Prophet(growth='linear',  # Force linear growth
-                     changepoint_prior_scale=0.005,  # Much lower (default is 0.05)
-                     n_changepoints=5,               # Fewer changepoints
-                     changepoint_range=0.8,           # Don't use the very end for trend setting
-                     yearly_seasonality=True, 
-                     weekly_seasonality=True,
-                     daily_seasonality=False,
-     )
-     # add regressors 
-     model.add_regressor('Holiday_Flag')
-     model.add_regressor('Unemployment')
-     model.add_regressor('CPI')
-     model.add_regressor('Month')
-     model.add_regressor('Fuel_Price')
-     
-     model.fit(df_prophet[['ds','y','Holiday_Flag','Unemployment','CPI','Month','Fuel_Price']])
-    # Create future dataframe (forecast 52 weeks ahead)
-     future = model.make_future_dataframe(periods=52,freq="W")
-     
-    # Prepare future regressor, need to provide future values
-     # such as last available values
-     last_values = df_cluster.iloc[-1]
-     
-     # Add regressor to future dataframe 
-     future['Holiday_Flag'] = 0  # Default to non-holiday, adjust as needed
-     future['Unemployment'] = last_values['Unemployment']  # Use last known value
-     future['CPI'] = last_values['CPI']  # Use last known value
-     future['Fuel_Price'] = last_values['Fuel_Price']
-     future['Month'] = future['ds'].dt.month
-     
-     forecast = model.predict(future)
-     
-     forecast_results[cluster]=(model,forecast,df_prophet)
-     
-     fig = model.plot(forecast)
+     df_prophet['ds'] = pd.to_datetime(df_prophet['ds'])
+     future['ds'] = pd.to_datetime(future['ds']) 
+     forecast['ds'] = pd.to_datetime(forecast['ds']) 
+     forecast_results[cluster]=(prophet_model,forecast,df_prophet)
+     fig = prophet_model.plot(forecast)
      plt.title(f"Sales Forecast for {cluster} with Regressors",fontsize=14)
      st.pyplot(fig)
+
 
 # Check and validate the sales trending down with macro market(retail index, unemployment and inflation etc)
 
@@ -342,9 +322,8 @@ def diagnose_prophet_trend_issue(model, forecast):
     total_forecast_change = forecast_components['yhat'].iloc[-1] - forecast_components['yhat'].iloc[0]
     st.write(f"Total forecast change: {(total_forecast_change / forecast_components['yhat'].iloc[0] * 100):.1f}%")
     
-    return st.dataframe(forecast_components.head())
 
-diagnose_prophet_trend_issue(model,forecast)
+diagnose_prophet_trend_issue(prophet_model,forecast)
 
 with st.expander("Insights from **Sales Forecasting** Analysis"):
     st.markdown("""  
@@ -363,16 +342,6 @@ X = df[['Holiday_Flag','CPI','Unemployment','Fuel_Price','Clusters','Temperature
 y = df['Weekly_Sales']
 
 X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.2,shuffle=False)
-
-model_xgb = XGBRegressor(
-    n_estimators=500,
-    learning_rate =0.01,
-    max_depth = 5,
-    subsample = 0.8,
-    colsample_bytree = 0.8,
-    random_state = 42
-)
-model_xgb.fit(X_train,y_train)
 
 y_pred_xgb= model_xgb.predict(X_test)
 
