@@ -1,24 +1,16 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import matplotlib.pyplot as plt
-from plotly.subplots import make_subplots
 import matplotlib.patches as mpatches
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from sklearn.linear_model import LinearRegression
-from prophet import Prophet
 from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score, mean_squared_error
 from xgboost import plot_importance
-from prophet import Prophet
-import joblib
 from fredapi import Fred
-import pickle
-from prophet.serialize import model_to_json,model_from_json
+from prophet.serialize import model_from_json
 
 # load model and forecast dataframe
 with open("model/prophet_sales.json", "r") as f:

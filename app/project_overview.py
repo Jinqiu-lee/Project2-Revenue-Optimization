@@ -1,7 +1,5 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-import joblib
+
 
 st.header(" 🔎 Project Overview")
 st.markdown("#### Data-driven strategies to maximize holiday & event sales performance")
