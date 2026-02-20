@@ -21,7 +21,7 @@ future = pd.read_csv("model/df_future.csv")
 model_xgb = XGBRegressor()
 model_xgb.load_model("model/model_xgb.json")
 
-fred = Fred(api_key="2991e539c6491edffa341a08ad95a396")
+#fred = Fred(api_key="2991e539c6491edffa341a08ad95a396")
 
 @st.cache_data
 def load_data():

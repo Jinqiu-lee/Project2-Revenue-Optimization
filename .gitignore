@@ -1,2 +1,25 @@
-.venv
-venv
+# ignore virtual environments and python
+venv/
+.venv/
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# jupiter notebook
+notebook/.ipynb_checkpoints/
+
+# model artifacts
+model/*.pkl
+model/*.json
+model/*.csv
+
+# data
+data/*.pkl
+data/*.csv
+
+
+# Mac system files
+local_packages.txt
+.DS_Store
